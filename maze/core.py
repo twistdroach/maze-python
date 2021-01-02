@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 from enum import Enum, auto, unique
 import random
-# from PIL import Image, ImageDraw, ImageColor
+from PIL import Image, ImageDraw, ImageColor
+from overrides import EnforceOverrides, overrides
 
 @unique
 class Direction(Enum):
@@ -92,18 +93,20 @@ class Cell:
         return distances
 
 
-class Grid:
-    def __init__(self, width, height):
+class Grid(EnforceOverrides):
+    def __init__(self, width, height, algorithm=None):
         self.width = width
         self.height = height
-        self.cells = [[Cell(row, column) for column in range(width)] for row in range(height)]
+        self.cells = self.prepare_grid()
         self.configure_neighbors()
+        if algorithm:
+            algorithm(self)
 
     def size(self):
         return self.width * self.height
 
     def random_cell(self):
-        random.choice(random.choice(self.cells))
+        return random.choice(random.choice(self.cells))
 
     def each_row(self):
         return self.cells
@@ -111,38 +114,52 @@ class Grid:
     def each_cell(self):
         return [row for columns in self.cells for row in columns]
 
-    # def to_img(self, cell_size=10):
-    #     img_width = 1 + cell_size * self.width
-    #     img_height = 1 + cell_size * self.height
-    #
-    #     background = ImageColor.getrgb("white")
-    #     wall = ImageColor.getrgb("black")
-    #
-    #     img = Image.new("RGB", (img_width, img_height), background)
-    #     imgdraw = ImageDraw.Draw(img)
-    #
-    #     for cell in self.each_cell():
-    #         x1 = cell.column * cell_size
-    #         y1 = cell.row * cell_size
-    #         x2 = (cell.column + 1) * cell_size
-    #         y2 = (cell.row + 1) * cell_size
-    #
-    #         if not cell.get_neighbor(Direction.NORTH):
-    #             imgdraw.line([(x1, y1), (x2, y1)], wall)
-    #         if not cell.get_neighbor(Direction.WEST):
-    #             imgdraw.line([(x1, y1), (x1, y2)], wall)
-    #
-    #         if not cell.is_linked(cell.get_neighbor(Direction.EAST)):
-    #             imgdraw.line([(x2, y1), (x2, y2)], wall)
-    #         if not cell.is_linked(cell.get_neighbor(Direction.SOUTH)):
-    #             imgdraw.line([(x1, y2), (x2, y2)], wall)
-    #
-    #     return img
+    def to_img(self, cell_size=10):
+        img_width = 1 + cell_size * self.width
+        img_height = 1 + cell_size * self.height
+
+        background = ImageColor.getrgb("white")
+        wall = ImageColor.getrgb("black")
+
+        img = Image.new("RGB", (img_width, img_height), background)
+        imgdraw = ImageDraw.Draw(img)
+
+        for cell in self.each_cell():
+            x1 = cell.column * cell_size
+            y1 = cell.row * cell_size
+            x2 = (cell.column + 1) * cell_size
+            y2 = (cell.row + 1) * cell_size
+            color = self.background_color_of(cell)
+            if color:
+                imgdraw.rectangle([(x1, y1), (x2, y2)], color)
+
+        for cell in self.each_cell():
+            x1 = cell.column * cell_size
+            y1 = cell.row * cell_size
+            x2 = (cell.column + 1) * cell_size
+            y2 = (cell.row + 1) * cell_size
+
+            if not cell.get_neighbor(Direction.NORTH):
+                imgdraw.line([(x1, y1), (x2, y1)], wall)
+            if not cell.get_neighbor(Direction.WEST):
+                imgdraw.line([(x1, y1), (x1, y2)], wall)
+
+            if not cell.is_linked(cell.get_neighbor(Direction.EAST)):
+                imgdraw.line([(x2, y1), (x2, y2)], wall)
+            if not cell.is_linked(cell.get_neighbor(Direction.SOUTH)):
+                imgdraw.line([(x1, y2), (x2, y2)], wall)
+
+        return img
+
+    def prepare_grid(self):
+        return [[Cell(row, column) for column in range(self.width)] for row in range(self.height)]
 
     def configure_neighbors(self):
         for column in range(self.width):
             for row in range(self.height):
                 cell = self.cells[row][column]
+                if not cell:
+                    continue
                 if column == 0:
                     cell.cell_neighbors[Direction.WEST] = None
                 else:
@@ -163,11 +180,22 @@ class Grid:
                 else:
                     cell.cell_neighbors[Direction.SOUTH] = self.cells[row + 1][column]
 
+    def deadends(self):
+        return [cell for cell in self.each_cell() if cell and len(cell.links()) == 1]
+
     def contents_of(self, cell):
         return " "
 
+    def background_color_of(self, cell):
+        return None
+
+    def stats(self):
+        num_of_deadends = len(self.deadends())
+        return "Deadends: {}\nCells per deadend: {}\n".format(num_of_deadends, self.size() / num_of_deadends)
+
     def __str__(self):
-        output = "+" + "---+" * self.width + "\n"
+        output = self.stats()
+        output += "+" + "---+" * self.width + "\n"
         for row in self.each_row():
             top = "|"
             bottom = "+"
@@ -175,12 +203,12 @@ class Grid:
                 body = '{:^3}'.format(self.contents_of(cell))
 
                 east_boundary = "|"
-                if cell.is_linked(cell.get_neighbor(Direction.EAST)):
+                if cell and cell.is_linked(cell.get_neighbor(Direction.EAST)):
                     east_boundary = " "
                 top += "{}{}".format(body, east_boundary)
 
                 south_boundary = "---"
-                if cell.is_linked(cell.get_neighbor(Direction.SOUTH)):
+                if cell and cell.is_linked(cell.get_neighbor(Direction.SOUTH)):
                     south_boundary = "   "
 
                 corner = "+"
@@ -193,9 +221,65 @@ class Grid:
 class DistanceGrid(Grid):
     distances = None
 
+    @overrides
+    def background_color_of(self, cell):
+        if not self.distances or cell not in self.distances:
+            return None
+
+        cell_distance = self.distances[cell]
+        max_distance = self.distances[self.distances.max()]
+        intensity = (max_distance - cell_distance) / max_distance
+        dark = 255 * intensity
+        light = 128 + (127 * intensity)
+        return (int(dark), int(light), int(dark), 255)
+
+    @overrides
     def contents_of(self, cell):
-        # if self.distances and self.distances[cell]:
         if self.distances and cell in self.distances:
             return self.distances[cell]
         else:
             return super().contents_of(cell)
+
+
+class Mask:
+    def __init__(self, width, height):
+        self.width = width
+        self.height = height
+        self.bits = [[True for column in range(width)] for row in range(height)]
+
+    def is_enabled(self, row, column):
+        return self.bits[row][column]
+
+    def set(self, row, column, truth):
+        self.bits[row][column] = truth
+
+    def count(self):
+        return sum(row.count(True) for row in self.bits)
+
+    def choice(self):
+        # Dangerous - if all cells are false, this will never return
+        while True:
+            row = random.choice(range(0, self.height))
+            column = random.choice(range(0, self.width))
+
+            if self.bits[row][column]:
+                return row, column
+
+
+class MaskedGrid(Grid):
+    def __init__(self, mask, algorithm=None):
+        self.mask = mask
+        super().__init__(mask.width, mask.height, algorithm)
+
+    @overrides
+    def prepare_grid(self):
+        return [[Cell(row, column) if self.mask.is_enabled(row, column) else None for column in range(self.width)] for row in range(self.height)]
+
+    @overrides
+    def random_cell(self):
+        row, column = self.mask.choice()
+        return self.cells[row][column]
+
+    @overrides
+    def size(self):
+        return self.mask.count()

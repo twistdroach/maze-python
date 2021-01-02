@@ -74,5 +74,38 @@ class TestGrid(unittest.TestCase):
         self.assertEqual(grid.cells[1][0], rows[1][0])
         self.assertEqual(grid.cells[2][0], rows[2][0])
 
+
+class TestMask(unittest.TestCase):
+    def test_cells_are_initialized_true(self):
+        mask = maze.Mask(2, 2)
+        self.assertTrue(mask.is_enabled(0, 0))
+        self.assertTrue(mask.is_enabled(0, 1))
+        self.assertTrue(mask.is_enabled(1, 0))
+        self.assertTrue(mask.is_enabled(1, 1))
+
+    def test_set_and_get(self):
+        mask = maze.Mask(2, 2)
+        self.assertTrue(mask.is_enabled(0, 0))
+        mask.set(0, 0, False)
+        self.assertFalse(mask.is_enabled(0, 0))
+
+    def test_count_returns_correct_true_count(self):
+        mask = maze.Mask(2, 2)
+        self.assertEqual(4, mask.count())
+        mask.set(0, 0, False)
+        self.assertEqual(3, mask.count())
+
+class TestMaskedGrid(unittest.TestCase):
+    def test_no_cell_generated_for_masked_cells(self):
+        mask = maze.Mask(2, 2)
+        mask.set(0, 0, False)
+        grid = maze.MaskedGrid(mask)
+        self.assertEqual(3, grid.size())
+        for cell in grid.each_cell():
+            if cell:
+                self.assertFalse(cell.row == 0 and cell.column == 0)
+
+
+
 if __name__ == '__main__':
     unittest.main()
