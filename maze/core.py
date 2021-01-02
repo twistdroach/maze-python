@@ -261,6 +261,22 @@ class Mask:
                     mask.set(row, column, False)
         return mask
 
+    @classmethod
+    def from_image(cls, img_file):
+        img = Image.open(img_file)
+        gray_scale_img = img.convert('L')
+        row_count = gray_scale_img.height
+        column_count = gray_scale_img.width
+
+        mask = cls(column_count, row_count)
+
+        for row in range(row_count):
+            for column in range(column_count):
+                if gray_scale_img.getpixel((column, row)) == 0:
+                    mask.set(row, column, False)
+
+        return mask
+
     def is_enabled(self, row, column):
         return self.bits[row][column]
 

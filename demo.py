@@ -52,8 +52,18 @@ X........X
 ....XX....
 X........X''')
 grid = maze.MaskedGrid(mask, maze.recursive_backtracker)
+# grid_img = grid.to_img()
+# grid_img.show("recursive backtracker - masked")
+print(grid)
+
+header("recursive backtracker - masked test_mask.png")
+mask = maze.Mask.from_image("test_mask.png")
+if not mask:
+    print("Failed to load mask")
+    exit(2)
+grid = maze.MaskedGrid(mask, maze.recursive_backtracker)
 grid_img = grid.to_img()
-grid_img.show("recursive backtracker - masked")
+grid_img.show("recursive backtracker - masked test_mask.png")
 print(grid)
 
 exit(1)
