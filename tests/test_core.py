@@ -95,6 +95,21 @@ class TestMask(unittest.TestCase):
         mask.set(0, 0, False)
         self.assertEqual(3, mask.count())
 
+    def test_load_mask_from_string(self):
+        mask_string = '''X.
+        .X
+        XX'''
+        mask = maze.Mask.from_string(mask_string)
+        self.assertEqual(2, mask.count())
+        self.assertEqual(2, mask.width)
+        self.assertEqual(3, mask.height)
+        self.assertFalse(mask.is_enabled(0, 0))
+        self.assertTrue(mask.is_enabled(0, 1))
+        self.assertTrue(mask.is_enabled(1, 0))
+        self.assertFalse(mask.is_enabled(1, 1))
+        self.assertFalse(mask.is_enabled(2, 0))
+        self.assertFalse(mask.is_enabled(2, 1))
+
 class TestMaskedGrid(unittest.TestCase):
     def test_no_cell_generated_for_masked_cells(self):
         mask = maze.Mask(2, 2)

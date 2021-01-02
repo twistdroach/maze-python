@@ -124,7 +124,7 @@ class Grid(EnforceOverrides):
         img = Image.new("RGB", (img_width, img_height), background)
         imgdraw = ImageDraw.Draw(img)
 
-        for cell in self.each_cell():
+        for cell in [cell for cell in self.each_cell() if cell]:
             x1 = cell.column * cell_size
             y1 = cell.row * cell_size
             x2 = (cell.column + 1) * cell_size
@@ -133,7 +133,7 @@ class Grid(EnforceOverrides):
             if color:
                 imgdraw.rectangle([(x1, y1), (x2, y2)], color)
 
-        for cell in self.each_cell():
+        for cell in [cell for cell in self.each_cell() if cell]:
             x1 = cell.column * cell_size
             y1 = cell.row * cell_size
             x2 = (cell.column + 1) * cell_size
@@ -184,6 +184,8 @@ class Grid(EnforceOverrides):
         return [cell for cell in self.each_cell() if cell and len(cell.links()) == 1]
 
     def contents_of(self, cell):
+        if not cell:
+            return "X"
         return " "
 
     def background_color_of(self, cell):
@@ -246,6 +248,18 @@ class Mask:
         self.width = width
         self.height = height
         self.bits = [[True for column in range(width)] for row in range(height)]
+
+    @classmethod
+    def from_string(cls, mask_string):
+        mask_string_list = [line.strip() for line in mask_string.splitlines()]
+        row_count = len(mask_string_list)
+        column_count = len(mask_string_list[0])
+        mask = cls(column_count, row_count)
+        for row, line in enumerate(mask_string_list):
+            for column, character in enumerate(line):
+                if character in 'X':
+                    mask.set(row, column, False)
+        return mask
 
     def is_enabled(self, row, column):
         return self.bits[row][column]

@@ -41,12 +41,22 @@ grid = maze.Grid(15, 15, maze.recursive_backtracker)
 print(grid)
 
 header("recursive backtracker - masked")
-mask = maze.Mask(5, 5)
-mask.set(0, 0, False)
-mask.set(2, 2, False)
-mask.set(4, 4, False)
+mask = maze.Mask.from_string('''X........X
+....XX....
+...XXXX...
+....XX....
+X........X
+X........X
+....XX....
+...XXXX...
+....XX....
+X........X''')
 grid = maze.MaskedGrid(mask, maze.recursive_backtracker)
+grid_img = grid.to_img()
+grid_img.show("recursive backtracker - masked")
 print(grid)
+
+exit(1)
 
 header("wilson - distance")
 grid = maze.DistanceGrid(50, 50, None)
